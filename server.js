@@ -4,6 +4,11 @@ const cors = require("cors");
 require("dotenv").config();
 const User = require("./models/user.model");
 const Exercise = require("./models/exercise.model");
+const bodyParser = require("body-parser");
+var moment = require("moment"); // require
+
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 var mongoose = require("mongoose");
 var connection = mongoose.connect(process.env.DB_URI, {
@@ -18,47 +23,63 @@ app.get("/", (req, res) => {
   res.sendFile(__dirname + "/views/index.html");
 });
 
+app.get("/api/exercise/users", (req, res) => {
+  User.find().then(function (user) {
+    res.json(user);
+  });
+});
+
 app.get("/api/exercise/log", (req, res) => {
   if (!req.query.userId) {
     res.json({ error: "required field is not set" });
     return;
   }
   User.findById(req.query.userId).then(function (user) {
+    var queryy = {};
+
     if (!user) {
       return res.sendStatus(404);
     }
     if (typeof req.query.limit !== "undefined") {
       var limit = req.query.limit;
     }
-
     if (typeof req.query.from !== "undefined") {
+      queryy.date = {};
+
       var from = req.query.from;
+      queryy.date.$gte = Date.parse(from);
     }
 
     if (typeof req.query.to !== "undefined") {
-      var to = req.query.to;
-    }
+      if (!queryy.date) queryy.date = {};
 
-    Exercise.find({ user: user })
+      var to = req.query.to;
+      queryy.date.$lte = Date.parse(to);
+    }
+    queryy.user = user;
+
+    Exercise.find(queryy)
       .limit(Number(limit))
       .then((results) => {
-        res.json({ 
-          _id : user._id,
-          username :user.username,
-          count : results.length,
-          log : results
+        res.json({
+          _id: user._id,
+          username: user.username,
+          count: results.length,
+          log: results,
         });
       });
   });
 });
 
 app.post("/api/exercise/new-user", (req, res) => {
-  if (!req.query.username) {
+  console.log(!req.body.username);
+  if (!req.query.username && !req.body.username) {
     res.json({ error: "username is not set" });
     return;
   }
+
   const user = new User({
-    username: req.query.username,
+    username: req.query.username || req.body.username,
   }).save((err, doc) => {
     if (err) res.json({ error: "user name already exists" });
     res.json(doc);
@@ -66,25 +87,45 @@ app.post("/api/exercise/new-user", (req, res) => {
 });
 
 app.post("/api/exercise/add", (req, res) => {
-  if (!req.query.userId || !req.query.duration || !req.query.description) {
+  if (!req.query.userId && !req.body.userId) {
     res.json({ error: "required field is not set" });
     return;
   }
-  User.findById(req.query.userId).then(function (user) {
+  if (!req.query.description && !req.body.description) {
+    res.json({ error: "required field is not set" });
+    return;
+  }
+  if (!req.query.duration && !req.body.duration) {
+    res.json({ error: "duration field is not set" });
+    return;
+  }
+  User.findById(req.query.userId || req.body.userId, (err, user) => {
+    if (err) {
+      return res.sendStatus(500);
+    }
     if (!user) {
       return res.sendStatus(404);
     }
+    console.log(req.query.date || req.body.date);
     const exercise = new Exercise({
       user: user,
-      duration: req.query.duration,
-      description: req.query.description,
-      date: new Date(req.query.date),
+      duration: req.query.duration || req.body.duration,
+      description: req.query.description || req.body.description,
+      date: Date.parse(req.query.date || req.body.date) || Date.now(),
     }).save((err, doc) => {
+      console.log({
+        _id: user._id,
+        username: user.username,
+        date: moment(doc.date).format("ddd MMM D yyyy"),
+        duration: doc.duration,
+        description: doc.description,
+      })
       if (err) res.json(err);
       res.json({
-        username: doc.user.username,
+        _id: user._id,
+        username: user.username,
+        date: moment(doc.date).format("ddd MMM D yyyy"),
         duration: doc.duration,
-        date: doc.date,
         description: doc.description,
       });
     });
