@@ -1,0 +1,31 @@
+POST  http://localhost:4000/api/exercise/new-user?username=shahriar1 HTTP/1.1
+content-type: application/json
+
+{
+    
+}
+
+################################
+POST  http://localhost:4000/api/exercise/new-user HTTP/1.1
+content-type: application/json
+
+{
+    
+}
+
+################################
+POST  http://localhost:4000/api/exercise/add?userId=6032c034c4acb37dc0c6f0d6&duration=5&description=mordam&date=2020-12-02 HTTP/1.1
+content-type: application/json
+
+{
+    
+}
+
+
+################################
+GET  http://localhost:4000/api/exercise/log?userId=6032c034c4acb37dc0c6f0d6 HTTP/1.1
+content-type: application/json
+
+{
+    
+}
